@@ -1,0 +1,18 @@
+from abc import ABC, abstractmethod #D'après notre modélisation la classe personne est une classe abstraite
+from datetime import datetime
+
+class Personne(ABC):
+    def __init__(self, id: int, nom: str, prenom: str, email: str, telephone: int):
+        self.id = id
+        self.nom = nom
+        self.prenom = prenom
+        self.email = email
+        self.telephone=telephone
+        self.date_creation = datetime.now() #Pour l'engistrement automatique de la date de création
+
+    def get_info(self) -> str:
+        return f"{self.nom} {self.prenom} ({self.email} {self.telephone})"
+
+    def valider_email(self) -> bool:
+        return "@" in self.email and "." in self.email
+

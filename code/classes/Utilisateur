@@ -1,0 +1,11 @@
+from typing import List #Pour annoter les types dans les paramètres
+
+class Utilisateur(Personne):
+    def __init__(self, id: int, nom: str, prenom: str, email: str, telephone=int, statut: str, historique: List[str]):
+        super().__init__(id, nom, prenom, email, telephone)
+        self.statut = statut
+        self.historique = historique
+
+    def __repr__(self):
+        return (f"Utilisateur(id={self.id}, nom='{self.nom}', prenom='{self.prenom}', "
+                f"email='{self.email}', telephone='{self.telephone}', statut='{self.statut}', historique={self.historique})")

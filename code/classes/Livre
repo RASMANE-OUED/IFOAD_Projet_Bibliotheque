@@ -1,0 +1,6 @@
+class livre:
+    def __init__ (self, titre, auteur, categorie, disponibilite):
+        self.titre=titre
+        self.auteur=auteur
+        self.categorie=categorie
+        self.disponibilite=disponibilite
