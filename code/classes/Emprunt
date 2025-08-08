@@ -1,0 +1,17 @@
+from datetime import datetime
+class Emprunt:
+    def __init__(self, id:int, id_utilisateur:int, id_livre:int, date_emprunt:datetime,
+     date_retour_prevue: datetime, date_retour_effective: datetime, statut:bool):
+     self.id=id
+     self.id_utilisateur=id_utilisateur
+     self.id_livre=id_livre
+     self.date_emprunt=datetime.now()
+     self.date_retour_prevue=date_retour_prevue
+     self.date_retour_effective=date_retour_effective
+     self.statut=statut
+
+#fonction __repr__ pour faciliter le debogage et le suivi
+    def __repr__(self):
+        return (f" Emprunt(id={self.id}, id_utilsateur={self.id_utilisateur}, id_livre={self.id_livre},"
+                f"date_emprunt={self.date_emprunt}, date_retour_prevue={self.date_retour_prevue},"
+                f"date_retour_effective={self.date_retour_effective}, statut={self.statut})")

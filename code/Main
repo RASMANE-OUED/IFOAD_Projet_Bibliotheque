@@ -1,5 +1,9 @@
 #Fichier principal 
 import pandas as pandas
+
+#Importation des classes
 from classes.Livre import Livre 
 from classes.Personne import Personne
 from classes.Utilisateur import Utilisateur
+from classes.Bibliothecaire import Bibliothecaire
+from classes.Emprunt import Emprunt

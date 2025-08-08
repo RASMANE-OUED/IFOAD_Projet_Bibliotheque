@@ -1,6 +1,13 @@
 class livre:
-    def __init__ (self, titre, auteur, categorie, disponibilite):
+    def __init__ (self, id: int, titre=str, auteur:str, categorie:str, date_ajout: datetime, disponibilite:bool):
+        self.id=id
         self.titre=titre
         self.auteur=auteur
         self.categorie=categorie
+        self.date_ajout=datetime.now()
         self.disponibilite=disponibilite
+    
+    def __repr__(self):
+        return ( f"id={self.id}, titre={self.titre}, auteur={self.auteur},"
+                 f" categorie={self.categorie}, disponibilite={self.disponibilite}"
+                )
