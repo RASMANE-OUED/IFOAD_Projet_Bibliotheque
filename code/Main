@@ -3,3 +3,5 @@ import pandas as pandas
 from classes.Livre import Livre 
 from classes.Personne import Personne
 from classes.Utilisateur import Utilisateur
+from classes.Bibliothecaire import Bibliothecaire
+
