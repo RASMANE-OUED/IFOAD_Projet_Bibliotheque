@@ -1,12 +1,14 @@
+
 from datetime import datetime, timedelta
 
 # Importation des classes
-from classes.livre import Livre
-from classes.utilisateur import Utilisateur
-from classes.bibliothecaire import Bibliothecaire
-from classes.emprunt import Emprunt
-from classes.catalogue import Catalogue
-from classes.bibliotheque import Bibliotheque
+from classes.Personne import Personne
+from classes.Livre import Livre
+from classes.Utilisateur import Utilisateur
+from classes.Bibliothecaire import Bibliothecaire
+from classes.Emprunt import Emprunt
+from classes.Catalogue import Catalogue
+from classes.Bibliotheque import Bibliotheque
 
 # Initialisation de la bibliothèque
 biblio = Bibliotheque(nom="Bibliothèque Centrale", adresse="Ouagadougou")
