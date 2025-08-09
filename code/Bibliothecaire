@@ -1,9 +1,0 @@
-class Bibliothecaire(Personne):
-    def __init__(self, id: int, matricule: str, nom: str, prenom: str, email: str, telephone: str = ""):
-        super().__init__(nom, prenom, email, telephone)
-        self.id = id
-        self.matricule = matricule
-
-    def __repr__(self):
-        return (f"Bibliothecaire(id={self.id}, matricule='{self.matricule}', "
-                f"nom='{self.nom}', prenom='{self.prenom}', email='{self.email}', telephone='{self.telephone}')")

@@ -1,10 +1,91 @@
-#Fichier principal 
-import pandas as pandas
+from datetime import datetime, timedelta
 
-#Importation des classes
-from classes.Livre import Livre 
-from classes.Personne import Personne
-from classes.Utilisateur import Utilisateur
-from classes.Bibliothecaire import Bibliothecaire
-from classes.Emprunt import Emprunt
-git 
+# Importation des classes
+from classes.livre import Livre
+from classes.utilisateur import Utilisateur
+from classes.bibliothecaire import Bibliothecaire
+from classes.emprunt import Emprunt
+from classes.catalogue import Catalogue
+from classes.bibliotheque import Bibliotheque
+
+# Initialisation de la bibliothèque
+biblio = Bibliotheque(nom="Bibliothèque Centrale", adresse="Ouagadougou")
+
+# Création d’un bibliothécaire
+admin = Bibliothecaire(id=1, matricule="BIB001", nom="Kaboré", prenom="Awa", email="awa.kabore@biblio.bf")
+biblio.bibliothecaires[admin.matricule] = admin
+
+# Création et ajout de livres
+livre1 = Livre(isbn="9781234567890", titre="Python pour les nuls", auteur="John Doe",
+               editeur="Eyrolles", annee_publication=2022, categorie="Informatique", nombre_pages=320)
+admin.ajouter_livre(biblio.catalogue, livre1)
+
+# Génération de 20 livres
+# ------------------------------------------------------------------
+livres_data = [
+    ("9780000000001", "Python pour data-scientists",      "A. Traoré",   "ENI",        2021, "Informatique", 410),
+    ("9780000000002", "Apprendre Julia en 7 jours",       "B. Ouédraogo","Eyrolles",   2023, "Informatique", 180),
+    ("9780000000003", "Statistiques inférentielle",        "C. Zongo",    "L'Harmattan",2022, "Mathématiques", 290),
+    ("9780000000004", "L'Afrique des savoirs",            "D. Kaboré",   "Présence",   2020, "Histoire", 350),
+    ("9780000000005", "Statistiques avec R",              "E. Bationo",  "ENI",        2021, "Mathématiques", 320),
+    ("9780000000006", "Programmation système en C",       "F. Nacoulma", "Dunod",      2022, "Informatique", 510),
+    ("9780000000007", "Les fondamentaux du web",          "G. Compaoré", "ENI",        2023, "Informatique", 270),
+    ("9780000000008", "Géopolitique du Sahel",            "H. Ouattara", "Karthala",   2021, "Géographie", 400),
+    ("9780000000009", "Algorithmes et structures",        "I. Zida",     "Eyrolles",   2020, "Informatique", 480),
+    ("9780000000010", "Introduction à l’IA",              "J. Yoda",     "ENI",        2023, "Informatique", 390),
+    ("9780000000011", "Le leadership africain",           "K. Diallo",   "L'Harmattan",2022, "Management", 220),
+    ("9780000000012", "Économie solidaire",               "L. Bamogo",   "Présence",   2021, "Économie", 300),
+    ("9780000000013", "Django par la pratique",           "M. Sana",     "ENI",        2023, "Informatique", 340),
+    ("9780000000014", "Sécurité informatique",            "N. Soro",     "Dunod",      2022, "Informatique", 370),
+    ("9780000000015", "Littérature burkinabè",            "O. Kafando",  "Néo-litt",   2020, "Littérature", 250),
+    ("9780000000016", "Big-data & société",               "P. Sawadogo", "ENI",        2023, "Data-Science", 430),
+    ("9780000000017", "Histoire de l’UNB",                "Q. Ilboudo",  "Présence",   2021, "Histoire", 310),
+    ("9780000000018", "Tests unitaires en Python",        "R. Kientega", "Eyrolles",   2022, "Informatique", 200),
+    ("9780000000019", "Éthique et numérique",             "S. Kiemde",   "Dunod",      2023, "Philosophie", 180),
+    ("9780000000020", "Scrum pour les DSI",               "T. Ouedraogo","ENI",        2023, "Management", 260),
+]
+
+for isbn, titre, auteur, editeur, annee_publication, categorie, nombre_pages in livres_data:
+    l = Livre(isbn, titre, auteur, editeur, annee_publication, categorie, nombre_pages)
+    admin.ajouter_livre(biblio.catalogue, l)
+
+# Inscription d’un utilisateur
+user = Utilisateur(numero_carte="U001", nom="Sawadogo", prenom="Delwende", email="delwende@etu.bf")
+biblio.inscrire_utilisateur(user)
+
+# Génération de 10 utilisateurs
+# ------------------------------------------------------------------
+utilisateurs_data = [
+    ("U002", "Ilboudo",  "Mariam",  "mariam@etu.bf"),
+    ("U003", "Kiemtore","Ibrahim", "ibrahim@etu.bf"),
+    ("U004", "Nana",     "Aïssata", "aissata@etu.bf"),
+    ("U005", "Barro",    "Samuel",  "samuel@etu.bf"),
+    ("U006", "Kafando",  "Rachid",  "rachid@etu.bf"),
+    ("U007", "Sawadogo", "Alima",   "alima@etu.bf"),
+    ("U008", "Zida",     "Pascal",  "pascal@etu.bf"),
+    ("U009", "Ouedraogo","Fatim",   "fatim@etu.bf"),
+    ("U010", "Kaboré",   "Salif",   "salif@etu.bf"),
+    ("U011", "Bationo",  "Laure",   "laure@etu.bf"),
+]
+
+for numero_carte, nom, prenom, email in utilisateurs_data:
+    u = Utilisateur(numero_carte, nom, prenom, email)
+    biblio.inscrire_utilisateur(u)
+
+
+# Emprunt d’un livre
+emprunt = biblio.traiter_emprunt(user_id="U001", isbn="9781234567890")
+print(" Emprunt effectué :", emprunt)
+
+# Retour du livre
+biblio.traiter_retour(emprunt_id=emprunt.id)
+print(" Livre retourné :", biblio.emprunts[emprunt.id])
+
+# Rapport de la bibliothèque
+rapport = biblio.generer_rapport()
+print(" Rapport :", rapport)
+
+# Petit test rapide
+# ------------------------------------------------------------------
+print(f" Catalogue : {len(biblio.catalogue.livres)} livres")
+print(f"Utilisateurs : {len(biblio.utilisateurs)} inscrits")
