@@ -17,9 +17,15 @@ class Bibliotheque:
             "periode_grace": 2
         }
 
+        # Charger le catalogue depuis la base au démarrage
+        self.catalogue.charger_tous()
+
     # --- CRUD Livres ---
     def ajouter_livre(self, livre) -> bool:
-        return self.catalogue.ajouter_livre(livre)
+        if self.catalogue.ajouter_livre(livre):
+            livre.save()  # Sauvegarde en base SQLite
+            return True
+        return False
 
     def modifier_livre(self, isbn: str, **modifications) -> bool:
         livre = self.catalogue.livres.get(isbn)
@@ -28,13 +34,18 @@ class Bibliotheque:
         for attr, val in modifications.items():
             if hasattr(livre, attr):
                 setattr(livre, attr, val)
+        livre.save()  # Mise à jour dans la base
         return True
 
     def supprimer_livre(self, isbn: str) -> bool:
         emprunts_actifs = [e for e in self.emprunts.values() if e.id_livre == isbn and e.statut]
         if emprunts_actifs:
             return False
-        return self.catalogue.supprimer_livre(isbn)
+        if self.catalogue.supprimer_livre(isbn):
+            from db import supprimer_livre_db
+            supprimer_livre_db(isbn)  # Suppression en base SQLite
+            return True
+        return False
 
     def lister_livres(self) -> List:
         return list(self.catalogue.livres.values())
@@ -44,6 +55,7 @@ class Bibliotheque:
         if utilisateur.numero_carte in self.utilisateurs:
             return False
         self.utilisateurs[utilisateur.numero_carte] = utilisateur
+        utilisateur.save()  # Sauvegarde en base SQLite
         return True
 
     def modifier_utilisateur(self, numero_carte: str, **modifications) -> bool:
@@ -53,6 +65,7 @@ class Bibliotheque:
         for attr, val in modifications.items():
             if hasattr(utilisateur, attr):
                 setattr(utilisateur, attr, val)
+        utilisateur.save()
         return True
 
     def supprimer_utilisateur(self, numero_carte: str) -> bool:
@@ -60,6 +73,8 @@ class Bibliotheque:
         if emprunts_actifs:
             return False
         if numero_carte in self.utilisateurs:
+            from db import supprimer_utilisateur_db
+            supprimer_utilisateur_db(numero_carte)
             del self.utilisateurs[numero_carte]
             return True
         return False
@@ -92,10 +107,13 @@ class Bibliotheque:
         )
         self.emprunts[id_emprunt] = emprunt
         livre.marquer_emprunte()
+        emprunt.save()  # Sauvegarde en base SQLite
 
         utilisateur.emprunts_actifs.append(emprunt)
         utilisateur.historique.append(f"Emprunt: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
+        utilisateur.save()
 
+        livre.save()
         return id_emprunt
 
     def retourner_livre(self, id_emprunt: int) -> bool:
@@ -103,15 +121,18 @@ class Bibliotheque:
         if not emprunt or emprunt.statut is False:
             return False
         emprunt.finaliser_retour()
+        emprunt.save()
 
         livre = self.catalogue.livres.get(emprunt.id_livre)
         if livre:
             livre.marquer_disponible()
+            livre.save()
 
         utilisateur = self.utilisateurs.get(emprunt.id_utilisateur)
         if utilisateur:
             utilisateur.emprunts_actifs = [e for e in utilisateur.emprunts_actifs if e.id != id_emprunt]
             utilisateur.historique.append(f"Retour: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
+            utilisateur.save()
 
         return True
 
@@ -169,9 +190,11 @@ class Bibliotheque:
         retard = any(e for e in self.emprunts.values() if e.id_utilisateur == numero_carte and e.est_en_retard() and e.statut)
         if retard:
             utilisateur.statut = "BLOQUÉ"
+            utilisateur.save()
             return True
         else:
             utilisateur.statut = "ACTIF"
+            utilisateur.save()
             return False
 
     # --- Méthode ajoutée corrigée : generer_rapport ---
