@@ -28,4 +28,3 @@ class Catalogue:
 
     def lister_livres_disponibles(self):
         return [livre for livre in self.livres.values() if livre.est_disponible()]
-

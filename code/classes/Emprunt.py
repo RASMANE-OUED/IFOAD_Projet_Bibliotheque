@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Emprunt:
     DUREE_STANDARD = 14  # jours
 
-    def __init__(self, id: int, id_utilisateur: int, id_livre: int,
+    def __init__(self, id: int, id_utilisateur: str, id_livre: str,
                  date_retour_prevue: datetime = None,
                  date_retour_effective: datetime = None,
                  statut: bool = True):

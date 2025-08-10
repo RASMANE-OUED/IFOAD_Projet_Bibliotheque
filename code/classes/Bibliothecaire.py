@@ -1,3 +1,5 @@
+from classes.Personne import Personne
+
 class Bibliothecaire(Personne):
     def __init__(self, id: int, matricule: str, nom: str, prenom: str,
                  email: str, telephone: str = "", niveau_acces: str = "standard"):
