@@ -294,6 +294,21 @@ class Bibliotheque:
             self.sauvegarder_utilisateur(utilisateur)
 
         return True
+    def Enregistrer_retour(self):
+    # Récupérer l'ID d'emprunt depuis un champ ou une sélection
+        id_emprunt = self.get_selected_emprunt_id()  # à adapter selon ton interface
+  
+        if id_emprunt is None:
+            messagebox.showerror("Erreur", "Aucun emprunt sélectionné.")
+        return
+
+        success = self.retourner_livre(id_emprunt)
+        if success:
+            messagebox.showinfo("Succès", "Retour enregistré avec succès.")
+            self.refresh_emprunts()  # si tu veux mettre à jour l'affichage
+        else:
+            messagebox.showerror("Erreur", "Impossible d'enregistrer le retour.")
+
     def get_livres_disponibles(self) -> List[Dict]:
         """Format spécial pour Combobox"""
         return [
