@@ -50,13 +50,18 @@ class BibliothequeApp:
         self.create_emprunt_tab()
         self.create_stats_tab()
 
-        # Barre de statut + bouton changement mot de passe
+        # Barre de statut + boutons
         self.status_bar = ttk.Frame(self.root)
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
 
         self.status_label = ttk.Label(self.status_bar, text="Prêt", relief=tk.SUNKEN, anchor="w", background="#d0d4db")
         self.status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
+        # Bouton pour quitter l'application
+        quit_btn = ttk.Button(self.status_bar, text="Quitter", command=self.root.quit, style="TButton")
+        quit_btn.pack(side=tk.RIGHT, padx=(0, 10), pady=2)
+
+        # Bouton pour changer le mot de passe
         change_pwd_btn = ttk.Button(self.status_bar, text="Changer mot de passe", command=self.ouvrir_fenetre_changer_mdp,
                                     style="TButton")
         change_pwd_btn.pack(side=tk.RIGHT, padx=10, pady=2)
@@ -375,15 +380,7 @@ class BibliothequeApp:
             confirmer = confirmer_mdp_entry.get()
             username = "admin"  # Mettez le nom d'utilisateur actuel, "admin" par défaut
 
-            # La vérification des identifiants se fait ici
-            # Note: J'ai ajouté une méthode `verifier_identifiants` dans votre classe Bibliotheque
-            # pour que cette vérification soit possible. Assurez-vous que cette méthode existe
-            # dans la classe Bibliotheque de votre projet.
-            # Example:
-            # def verifier_identifiants(self, username, password):
-            #     return username == "admin" and password == "1234"
-
-            if ancien != "1234": # Remplacez "1234" par la logique de vérification
+            if ancien != "1234":
                 messagebox.showerror("Erreur", "Ancien mot de passe incorrect.")
                 return
             
@@ -417,8 +414,6 @@ def show_login():
         username = username_var.get()
         password = password_var.get()
         
-        # Identifiants en dur, à remplacer par une logique de vérification
-        # provenant de votre classe Bibliotheque si vous l'avez implémentée.
         if username == "admin" and password == "1234":
             login_root.destroy()
             main_root = tk.Tk()
@@ -440,6 +435,5 @@ def show_login():
 
     login_root.mainloop()
 
-# Point d'entrée de l'application
 if __name__ == "__main__":
     show_login()
