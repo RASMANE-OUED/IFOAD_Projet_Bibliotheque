@@ -8,15 +8,20 @@ from classes.Utilisateur import Utilisateur
 class BibliothequeApp:
     def __init__(self, root):
         self.root = root
-        self.root.title(" Gestion de Bibliothèque UJKZ")
+        self.root.title("Gestion de Bibliothèque UJKZ")
         self.root.geometry("1200x700")
         self.root.configure(bg="#f4f6f8")
 
         Path("data").mkdir(exist_ok=True)
+
         self.biblio = Bibliotheque(nom="Bibliothèque Centrale", adresse="Ouagadougou")
 
         self.setup_style()
         self.setup_ui()
+        
+        # Lier l'événement de changement d'onglet pour mettre à jour les statistiques
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
+
 
     def setup_style(self):
         style = ttk.Style()
@@ -27,14 +32,15 @@ class BibliothequeApp:
         style.map("TNotebook.Tab", background=[("selected", "#2b4f81")], foreground=[("selected", "white")])
 
         style.configure("TLabel", background="#f4f6f8", font=("Helvetica", 10))
-        style.configure("Header.TLabel", font=("Helvetica", 14, "bold"), background="#2b4f81", foreground="white", padding=5)
+        # Style pour l'en-tête, nous allons l'utiliser de manière cohérente
+        style.configure("Header.TLabel", font=("Helvetica", 14, "bold"), background="#f4f6f8", foreground="#2b4f81", padding=5)
 
-        style.configure("TButton", font=("Helvetica", 10, "bold"), padding=6, relief="flat", background="#2b4f81", foreground="white")
-        style.map("TButton", background=[("active", "#1f3a5f")])
+        style.configure("TButton", font=("Helvetica", 10, "bold"), padding=6, relief="flat",
+                        background="#2b4f81", foreground="white")
+        style.map("TButton", background=[("active", "#1f3a5f")], foreground=[('disabled', '#a3a3a3')])
 
         style.configure("Treeview", background="white", foreground="black", rowheight=25, fieldbackground="white")
         style.map("Treeview", background=[("selected", "#2b4f81")], foreground=[("selected", "white")])
-
         style.configure("Treeview.Heading", font=("Helvetica", 10, "bold"), background="#e1e5eb", foreground="#2b4f81")
 
     def setup_ui(self):
@@ -46,15 +52,23 @@ class BibliothequeApp:
         self.create_emprunt_tab()
         self.create_stats_tab()
 
-        self.status_bar = ttk.Label(self.root, text="Prêt", relief=tk.SUNKEN, anchor="w")
+        self.status_bar = ttk.Label(self.root, text="Prêt", relief=tk.SUNKEN, anchor="w", background="#d0d4db")
         self.status_bar.pack(fill=tk.X, side=tk.BOTTOM)
+        
+    def on_tab_changed(self, event):
+        selected_tab = event.widget.tab('current', 'text')
+        if selected_tab == "Statistiques":
+            self.update_stats()
+        elif selected_tab == "Emprunts":
+            self.refresh_emprunt_combos()
+            self.refresh_emprunts()
 
     # --- Onglet Livres ---
     def create_livre_tab(self):
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, style='TFrame')
         self.notebook.add(tab, text="Livres")
 
-        form_frame = ttk.Frame(tab)
+        form_frame = ttk.Frame(tab, style='TFrame')
         form_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
 
         ttk.Label(form_frame, text="ISBN:").grid(row=0, column=0, sticky="w")
@@ -73,23 +87,22 @@ class BibliothequeApp:
         self.categorie_entry = ttk.Entry(form_frame)
         self.categorie_entry.grid(row=1, column=3, padx=5)
 
-        add_btn = ttk.Button(form_frame, text="Ajouter Livre", command=self.ajouter_livre)
+        add_btn = ttk.Button(form_frame, text="Ajouter Livre", command=self.ajouter_livre, style='TButton')
         add_btn.grid(row=0, column=4, rowspan=2, padx=10)
 
-        # Tableau
         self.livre_tree = ttk.Treeview(tab, columns=("isbn", "titre", "auteur", "categorie"), show="headings")
         for col in ("isbn", "titre", "auteur", "categorie"):
             self.livre_tree.heading(col, text=col.capitalize())
-            self.livre_tree.column(col, width=200)
+            self.livre_tree.column(col, width=250)
         self.livre_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.refresh_livres()
 
     def ajouter_livre(self):
-        isbn = self.isbn_entry.get()
-        titre = self.titre_entry.get()
-        auteur = self.auteur_entry.get()
-        categorie = self.categorie_entry.get()
+        isbn = self.isbn_entry.get().strip()
+        titre = self.titre_entry.get().strip()
+        auteur = self.auteur_entry.get().strip()
+        categorie = self.categorie_entry.get().strip()
 
         if not isbn or not titre or not auteur:
             messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires.")
@@ -100,21 +113,32 @@ class BibliothequeApp:
         if self.biblio.ajouter_livre(livre):
             messagebox.showinfo("Succès", "Livre ajouté avec succès.")
             self.refresh_livres()
+            self.clear_livre_form()
         else:
             messagebox.showerror("Erreur", "Ce livre existe déjà.")
 
     def refresh_livres(self):
         for row in self.livre_tree.get_children():
             self.livre_tree.delete(row)
-        for livre in self.biblio.catalogue.livres.values():
-            self.livre_tree.insert("", tk.END, values=(livre.isbn, livre.titre, livre.auteur, livre.categorie))
+        for i, livre in enumerate(self.biblio.catalogue.livres.values()):
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+            self.livre_tree.insert("", tk.END, values=(livre.isbn, livre.titre, livre.auteur, livre.categorie),
+                                   tags=(tag,))
+        self.livre_tree.tag_configure('evenrow', background='white')
+        self.livre_tree.tag_configure('oddrow', background='#f0f4ff')
+
+    def clear_livre_form(self):
+        self.isbn_entry.delete(0, tk.END)
+        self.titre_entry.delete(0, tk.END)
+        self.auteur_entry.delete(0, tk.END)
+        self.categorie_entry.delete(0, tk.END)
 
     # --- Onglet Utilisateurs ---
     def create_utilisateur_tab(self):
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, style='TFrame')
         self.notebook.add(tab, text="Utilisateurs")
 
-        form_frame = ttk.Frame(tab)
+        form_frame = ttk.Frame(tab, style='TFrame')
         form_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
 
         ttk.Label(form_frame, text="N° Carte:").grid(row=0, column=0, sticky="w")
@@ -133,22 +157,22 @@ class BibliothequeApp:
         self.email_entry = ttk.Entry(form_frame)
         self.email_entry.grid(row=1, column=3, padx=5)
 
-        add_btn = ttk.Button(form_frame, text="Ajouter Utilisateur", command=self.ajouter_utilisateur)
+        add_btn = ttk.Button(form_frame, text="Ajouter Utilisateur", command=self.ajouter_utilisateur, style='TButton')
         add_btn.grid(row=0, column=4, rowspan=2, padx=10)
 
         self.user_tree = ttk.Treeview(tab, columns=("numero", "nom", "prenom", "email"), show="headings")
         for col in ("numero", "nom", "prenom", "email"):
             self.user_tree.heading(col, text=col.capitalize())
-            self.user_tree.column(col, width=200)
+            self.user_tree.column(col, width=250)
         self.user_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.refresh_utilisateurs()
 
     def ajouter_utilisateur(self):
-        numero = self.num_carte_entry.get()
-        nom = self.nom_entry.get()
-        prenom = self.prenom_entry.get()
-        email = self.email_entry.get()
+        numero = self.num_carte_entry.get().strip()
+        nom = self.nom_entry.get().strip()
+        prenom = self.prenom_entry.get().strip()
+        email = self.email_entry.get().strip()
 
         if not numero or not nom or not prenom or not email:
             messagebox.showerror("Erreur", "Veuillez remplir tous les champs.")
@@ -158,37 +182,179 @@ class BibliothequeApp:
         if self.biblio.inscrire_utilisateur(user):
             messagebox.showinfo("Succès", "Utilisateur ajouté.")
             self.refresh_utilisateurs()
+            self.clear_user_form()
         else:
             messagebox.showerror("Erreur", "Cet utilisateur existe déjà.")
 
     def refresh_utilisateurs(self):
         for row in self.user_tree.get_children():
             self.user_tree.delete(row)
-        for user in self.biblio.utilisateurs.values():
-            self.user_tree.insert("", tk.END, values=(user.numero_carte, user.nom, user.prenom, user.email))
+        for i, user in enumerate(self.biblio.utilisateurs.values()):
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+            self.user_tree.insert("", tk.END, values=(user.numero_carte, user.nom, user.prenom, user.email),
+                                  tags=(tag,))
+        self.user_tree.tag_configure('evenrow', background='white')
+        self.user_tree.tag_configure('oddrow', background='#f0f4ff')
+
+    def clear_user_form(self):
+        self.num_carte_entry.delete(0, tk.END)
+        self.nom_entry.delete(0, tk.END)
+        self.prenom_entry.delete(0, tk.END)
+        self.email_entry.delete(0, tk.END)
 
     # --- Onglet Emprunts ---
     def create_emprunt_tab(self):
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, style='TFrame')
         self.notebook.add(tab, text="Emprunts")
 
-        ttk.Label(tab, text="Fonction emprunts à implémenter...").pack()
+        form_frame = ttk.Frame(tab, style='TFrame')
+        form_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+        ttk.Label(form_frame, text="Utilisateur (N° carte) :").grid(row=0, column=0, sticky="w")
+        self.emprunt_user_var = tk.StringVar()
+        self.emprunt_user_combo = ttk.Combobox(form_frame, textvariable=self.emprunt_user_var, state="readonly")
+        self.emprunt_user_combo.grid(row=0, column=1, padx=5)
+
+        ttk.Label(form_frame, text="Livre (ISBN) :").grid(row=0, column=2, sticky="w")
+        self.emprunt_livre_var = tk.StringVar()
+        self.emprunt_livre_combo = ttk.Combobox(form_frame, textvariable=self.emprunt_livre_var, state="readonly")
+        self.emprunt_livre_combo.grid(row=0, column=3, padx=5)
+
+        emprunter_btn = ttk.Button(form_frame, text="Faire Emprunt", command=self.ajouter_emprunt, style='TButton')
+        emprunter_btn.grid(row=0, column=4, padx=10)
+
+        colonnes = ("id", "utilisateur", "livre", "date_emprunt", "date_retour_prevue", "date_retour_effective", "statut")
+        self.emprunts_tree = ttk.Treeview(tab, columns=colonnes, show="headings", selectmode="browse")
+        for col in colonnes:
+            self.emprunts_tree.heading(col, text=col.replace("_", " ").capitalize())
+            self.emprunts_tree.column(col, width=130, anchor=tk.W)
+        self.emprunts_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        retourner_btn = ttk.Button(tab, text="Retourner le livre sélectionné", command=self.retourner_emprunt, style='TButton')
+        retourner_btn.pack(pady=5)
+
+        self.refresh_emprunt_combos()
+        self.refresh_emprunts()
+
+    def refresh_emprunt_combos(self):
+        self.emprunt_user_combo['values'] = list(self.biblio.utilisateurs.keys())
+        livres_disponibles = [livre.isbn for livre in self.biblio.catalogue.livres.values() if livre.est_disponible()]
+        self.emprunt_livre_combo['values'] = livres_disponibles
+        if livres_disponibles:
+            self.emprunt_livre_var.set(livres_disponibles[0])
+        if self.biblio.utilisateurs:
+            self.emprunt_user_var.set(next(iter(self.biblio.utilisateurs.keys())))
+
+    def refresh_emprunts(self):
+        for row in self.emprunts_tree.get_children():
+            self.emprunts_tree.delete(row)
+        for i, emprunt in enumerate(self.biblio.emprunts.values()):
+            utilisateur = self.biblio.utilisateurs.get(emprunt.id_utilisateur)
+            livre = self.biblio.catalogue.livres.get(emprunt.id_livre)
+            date_emprunt = emprunt.date_emprunt.strftime("%Y-%m-%d") if emprunt.date_emprunt else "N/A"
+            date_retour_prevue = emprunt.date_retour_prevue.strftime("%Y-%m-%d") if emprunt.date_retour_prevue else "N/A"
+            date_retour_effective = emprunt.date_retour_effective.strftime("%Y-%m-%d") if emprunt.date_retour_effective else "N/A"
+            statut = "En cours" if emprunt.statut else "Terminé"
+            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+            self.emprunts_tree.insert("", tk.END, values=(
+                emprunt.id,
+                utilisateur.numero_carte if utilisateur else "Inconnu",
+                livre.isbn if livre else "Inconnu",
+                date_emprunt,
+                date_retour_prevue,
+                date_retour_effective,
+                statut), tags=(tag,))
+        self.emprunts_tree.tag_configure('evenrow', background='white')
+        self.emprunts_tree.tag_configure('oddrow', background='#f0f4ff')
+
+    def ajouter_emprunt(self):
+        numero_carte = self.emprunt_user_var.get()
+        isbn = self.emprunt_livre_var.get()
+        if not numero_carte or not isbn:
+            messagebox.showwarning("Validation", "Veuillez sélectionner un utilisateur et un livre.")
+            return
+        id_emprunt = self.biblio.emprunter_livre(numero_carte, isbn)
+        if id_emprunt is None:
+            messagebox.showerror("Erreur", "Impossible d'effectuer l'emprunt. Vérifiez la disponibilité et le statut de l'utilisateur.")
+        else:
+            messagebox.showinfo("Succès", f"Emprunt réalisé avec ID {id_emprunt}.")
+            self.refresh_emprunts()
+            self.refresh_emprunt_combos()
+            self.update_stats()
+
+    def retourner_emprunt(self):
+        selected = self.emprunts_tree.selection()
+        if not selected:
+            messagebox.showwarning("Sélection", "Veuillez sélectionner un emprunt à retourner.")
+            return
+        values = self.emprunts_tree.item(selected[0], "values")
+        id_emprunt = int(values[0])
+        if self.biblio.retourner_livre(id_emprunt):
+            messagebox.showinfo("Succès", "Retour effectué.")
+            self.refresh_emprunts()
+            self.refresh_emprunt_combos()
+            self.update_stats()
+        else:
+            messagebox.showerror("Erreur", "Retour impossible, emprunt déjà terminé ou invalide.")
 
     # --- Onglet Statistiques ---
     def create_stats_tab(self):
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, style='TFrame')
         self.notebook.add(tab, text="Statistiques")
 
-        self.stats_label = ttk.Label(tab, text="", style="Header.TLabel")
-        self.stats_label.pack(fill=tk.BOTH, expand=True)
+        # Cadre principal centré
+        main_frame = ttk.Frame(tab, style='TFrame')
+        main_frame.pack(expand=True, padx=20, pady=20)
 
-        self.update_stats()
+        ttk.Label(main_frame, text="Statistiques de la Bibliothèque", font=("Helvetica", 16, "bold"), foreground="#2b4f81", background="#f4f6f8").pack(pady=(0, 20))
 
+        # Cadre pour les statistiques principales
+        stats_frame = ttk.Frame(main_frame, style='TFrame')
+        stats_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Dictionnaire pour stocker les labels de statistiques
+        self.stats_labels = {}
+        
+        row_count = 0
+        stats_data = [
+            ("📚 Total de Livres", "total_livres"),
+            ("👥 Total d'Utilisateurs", "total_utilisateurs"),
+            ("📖 Total d'Emprunts", "total_emprunts"),
+            ("✅ Livres Disponibles", "livres_disponibles"),
+            ("⏳ Emprunts en Cours", "emprunts_en_cours"),
+            ("🚫 Utilisateurs Bloqués", "utilisateurs_bloques"),
+            ("💰 Amendes Totales", "amendes_totales")
+        ]
+
+        for emoji_label, key in stats_data:
+            # Label pour le nom de la statistique
+            ttk.Label(stats_frame, text=f"• {emoji_label} :", font=("Helvetica", 11)).grid(row=row_count, column=0, sticky="w", pady=5, padx=10)
+            
+            # Label pour la valeur de la statistique, qui sera mis à jour
+            self.stats_labels[key] = ttk.Label(stats_frame, text="Chargement...", font=("Helvetica", 11, "bold"), foreground="#4a4a4a")
+            self.stats_labels[key].grid(row=row_count, column=1, sticky="w", pady=5, padx=10)
+            
+            row_count += 1
+    
     def update_stats(self):
         rapport = self.biblio.generer_rapport()
-        self.stats_label.config(text=str(rapport))
-        self.root.after(10000, self.update_stats)  # Mise à jour toutes les 10s
 
+        emprunts_en_cours = len([e for e in self.biblio.emprunts.values() if e.statut])
+        utilisateurs_bloques = len([u for u in self.biblio.utilisateurs.values() if u.statut == "BLOQUÉ"])
+        
+        total_amendes = 0.0
+        for emprunt in self.biblio.emprunts_en_retard():
+            total_amendes += self.biblio.calculer_amende(emprunt.id)
+        
+        # Mise à jour des labels avec les nouvelles valeurs
+        if hasattr(self, 'stats_labels'):
+            self.stats_labels["total_livres"].config(text=str(rapport['total_livres']))
+            self.stats_labels["total_utilisateurs"].config(text=str(rapport['total_utilisateurs']))
+            self.stats_labels["total_emprunts"].config(text=str(rapport['total_emprunts']))
+            self.stats_labels["livres_disponibles"].config(text=str(rapport['livres_disponibles']))
+            self.stats_labels["emprunts_en_cours"].config(text=str(emprunts_en_cours))
+            self.stats_labels["utilisateurs_bloques"].config(text=str(utilisateurs_bloques))
+            self.stats_labels["amendes_totales"].config(text=f"{total_amendes:.2f} €")
 
 if __name__ == "__main__":
     root = tk.Tk()
