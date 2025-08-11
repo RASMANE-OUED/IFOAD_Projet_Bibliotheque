@@ -1,22 +1,31 @@
+import sqlite3
 from datetime import datetime, timedelta
 from typing import List, Optional
+
 from classes.Catalogue import Catalogue
 from classes.Emprunt import Emprunt
+from classes.Utilisateur import Utilisateur
+from classes.Livre import Livre
+from classes.Bibliothecaire import Bibliothecaire
 
 class Bibliotheque:
-    def __init__(self, nom: str, adresse: str):
+    def __init__(self, nom: str, adresse: str, db_path: str = "bibliotheque.db"):
         self.nom = nom
         self.adresse = adresse
         self.catalogue = Catalogue()
-        self.utilisateurs = {}      # clé = numero_carte (str)
-        self.bibliothecaires = {}   # clé = matricule (str)
-        self.emprunts = {}          # clé = id emprunt (int)
+        self.utilisateurs = {}
+        self.bibliothecaires = {}
+        self.emprunts = {}
+        self.db_path = db_path
+        self.conn = None
+        
         self.config = {
             "max_emprunts": 5,
             "duree_emprunt": 14,
             "periode_grace": 2
         }
 
+<<<<<<< Updated upstream
         # Charger le catalogue depuis la base au démarrage
         self.catalogue.charger_tous()
 
@@ -46,15 +55,192 @@ class Bibliotheque:
             supprimer_livre_db(isbn)  # Suppression en base SQLite
             return True
         return False
+=======
+        self.connect_db()      # Connecte la base SQLite
+        self.creer_tables()    # Crée les tables si elles n’existent pas
+        self.charger_donnees() # Charge les données en mémoire
 
-    def lister_livres(self) -> List:
-        return list(self.catalogue.livres.values())
+    def connect_db(self):
+        self.conn = sqlite3.connect(self.db_path)
+        self.conn.row_factory = sqlite3.Row  # Accès par clé de nom de colonne
 
-    # --- CRUD Utilisateurs ---
-    def inscrire_utilisateur(self, utilisateur) -> bool:
+    def creer_tables(self):
+        cursor = self.conn.cursor()
+>>>>>>> Stashed changes
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS livres (
+                isbn TEXT PRIMARY KEY,
+                titre TEXT,
+                auteur TEXT,
+                editeur TEXT,
+                annee_publication INTEGER,
+                categorie TEXT,
+                nombre_pages INTEGER,
+                disponible INTEGER
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS utilisateurs (
+                numero_carte TEXT PRIMARY KEY,
+                nom TEXT,
+                prenom TEXT,
+                email TEXT,
+                telephone TEXT,
+                statut TEXT
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS emprunts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero_carte TEXT,
+                isbn TEXT,
+                date_emprunt TEXT,
+                date_retour_prevue TEXT,
+                date_retour_effective TEXT,
+                statut INTEGER,
+                FOREIGN KEY(numero_carte) REFERENCES utilisateurs(numero_carte),
+                FOREIGN KEY(isbn) REFERENCES livres(isbn)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bibliothecaires (
+                id INTEGER PRIMARY KEY,
+                matricule TEXT UNIQUE,
+                nom TEXT,
+                prenom TEXT,
+                email TEXT,
+                telephone TEXT,
+                niveau_acces TEXT
+            )
+        """)
+
+        self.conn.commit()
+
+    def charger_donnees(self):
+        cursor = self.conn.cursor()
+
+        # Charger livres
+        cursor.execute("SELECT * FROM livres")
+        for row in cursor.fetchall():
+            livre = Livre(
+                isbn=row["isbn"],
+                titre=row["titre"],
+                auteur=row["auteur"],
+                editeur=row["editeur"],
+                annee_publication=row["annee_publication"],
+                categorie=row["categorie"],
+                nombre_pages=row["nombre_pages"],
+                disponibilite=bool(row["disponible"])
+            )
+            self.catalogue.livres[livre.isbn] = livre
+
+        # Charger utilisateurs
+        cursor.execute("SELECT * FROM utilisateurs")
+        for row in cursor.fetchall():
+            user = Utilisateur(
+                numero_carte=row["numero_carte"],
+                nom=row["nom"],
+                prenom=row["prenom"],
+                email=row["email"],
+                telephone=row["telephone"],
+                statut=row["statut"]
+            )
+            self.utilisateurs[user.numero_carte] = user
+
+        # Charger emprunts
+        cursor.execute("SELECT * FROM emprunts")
+        for row in cursor.fetchall():
+            emprunt = Emprunt(
+                id=row["id"],
+                id_utilisateur=row["numero_carte"],
+                id_livre=row["isbn"],
+                date_retour_prevue=datetime.fromisoformat(row["date_retour_prevue"]) if row["date_retour_prevue"] else None,
+                date_retour_effective=datetime.fromisoformat(row["date_retour_effective"]) if row["date_retour_effective"] else None,
+                statut=bool(row["statut"])
+            )
+            # date_emprunt récupérée automatiquement dans Emprunt.__init__, pas stockée ici
+            self.emprunts[emprunt.id] = emprunt
+
+            # Ajouter emprunt actif à utilisateur
+            if emprunt.statut and emprunt.id_utilisateur in self.utilisateurs:
+                self.utilisateurs[emprunt.id_utilisateur].emprunts_actifs.append(emprunt)
+
+        # Charger bibliothecaires
+        cursor.execute("SELECT * FROM bibliothecaires")
+        for row in cursor.fetchall():
+            bib = Bibliothecaire(
+                id=row["id"],
+                matricule=row["matricule"],
+                nom=row["nom"],
+                prenom=row["prenom"],
+                email=row["email"],
+                telephone=row["telephone"],
+                niveau_acces=row["niveau_acces"]
+            )
+            self.bibliothecaires[bib.matricule] = bib
+
+    # --- Méthodes de sauvegarde ---
+    def sauvegarder_livre(self, livre: Livre):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO livres (isbn, titre, auteur, editeur, annee_publication,
+                                         categorie, nombre_pages, disponible)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (livre.isbn, livre.titre, livre.auteur, livre.editeur, livre.annee_publication,
+              livre.categorie, livre.nombre_pages, int(livre.disponible)))
+        self.conn.commit()
+        
+    def sauvegarder_utilisateur(self, utilisateur: Utilisateur):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO utilisateurs (numero_carte, nom, prenom, email, telephone, statut)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (utilisateur.numero_carte, utilisateur.nom, utilisateur.prenom,
+              utilisateur.email, utilisateur.telephone, utilisateur.statut))
+        self.conn.commit()
+        
+    def sauvegarder_emprunt(self, emprunt: Emprunt):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO emprunts (id, numero_carte, isbn, date_emprunt, date_retour_prevue,
+                                            date_retour_effective, statut)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            emprunt.id,
+            emprunt.id_utilisateur,
+            emprunt.id_livre,
+            emprunt.date_emprunt.isoformat(),
+            emprunt.date_retour_prevue.isoformat() if emprunt.date_retour_prevue else None,
+            emprunt.date_retour_effective.isoformat() if emprunt.date_retour_effective else None,
+            int(emprunt.statut)
+        ))
+        self.conn.commit()
+
+    def sauvegarder_bibliothecaire(self, bibliothecaire: Bibliothecaire):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO bibliothecaires (id, matricule, nom, prenom, email, telephone, niveau_acces)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (bibliothecaire.id, bibliothecaire.matricule, bibliothecaire.nom, bibliothecaire.prenom,
+              bibliothecaire.email, bibliothecaire.telephone, bibliothecaire.niveau_acces))
+        self.conn.commit()
+
+    # --- Méthodes métier (exemples avec sauvegarde intégrée) ---
+    def ajouter_livre(self, livre: Livre) -> bool:
+        result = self.catalogue.ajouter_livre(livre)
+        if result:
+            self.sauvegarder_livre(livre)
+        return result
+
+    def inscrire_utilisateur(self, utilisateur: Utilisateur) -> bool:
         if utilisateur.numero_carte in self.utilisateurs:
             return False
         self.utilisateurs[utilisateur.numero_carte] = utilisateur
+<<<<<<< Updated upstream
         utilisateur.save()  # Sauvegarde en base SQLite
         return True
 
@@ -83,12 +269,15 @@ class Bibliotheque:
         return list(self.utilisateurs.values())
 
     # --- Emprunts / Retours ---
+=======
+        self.sauvegarder_utilisateur(utilisateur)
+        return True
+
+>>>>>>> Stashed changes
     def emprunter_livre(self, numero_carte: str, isbn: str) -> Optional[int]:
         utilisateur = self.utilisateurs.get(numero_carte)
         livre = self.catalogue.livres.get(isbn)
-        if not utilisateur or not livre:
-            return None
-        if not livre.est_disponible():
+        if not utilisateur or not livre or not livre.est_disponible():
             return None
         emprunts_actifs = [e for e in self.emprunts.values() if e.id_utilisateur == numero_carte and e.statut]
         if len(emprunts_actifs) >= self.config["max_emprunts"]:
@@ -107,11 +296,21 @@ class Bibliotheque:
         )
         self.emprunts[id_emprunt] = emprunt
         livre.marquer_emprunte()
+<<<<<<< Updated upstream
         emprunt.save()  # Sauvegarde en base SQLite
 
         utilisateur.emprunts_actifs.append(emprunt)
         utilisateur.historique.append(f"Emprunt: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
         utilisateur.save()
+=======
+        self.sauvegarder_livre(livre)
+
+        utilisateur.emprunts_actifs.append(emprunt)
+        utilisateur.historique.append(f"Emprunt: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
+        self.sauvegarder_utilisateur(utilisateur)
+
+        self.sauvegarder_emprunt(emprunt)
+>>>>>>> Stashed changes
 
         livre.save()
         return id_emprunt
@@ -121,35 +320,39 @@ class Bibliotheque:
         if not emprunt or emprunt.statut is False:
             return False
         emprunt.finaliser_retour()
+<<<<<<< Updated upstream
         emprunt.save()
+=======
+        self.sauvegarder_emprunt(emprunt)
+>>>>>>> Stashed changes
 
         livre = self.catalogue.livres.get(emprunt.id_livre)
         if livre:
             livre.marquer_disponible()
+<<<<<<< Updated upstream
             livre.save()
+=======
+            self.sauvegarder_livre(livre)
+>>>>>>> Stashed changes
 
         utilisateur = self.utilisateurs.get(emprunt.id_utilisateur)
         if utilisateur:
             utilisateur.emprunts_actifs = [e for e in utilisateur.emprunts_actifs if e.id != id_emprunt]
             utilisateur.historique.append(f"Retour: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
+<<<<<<< Updated upstream
             utilisateur.save()
+=======
+            self.sauvegarder_utilisateur(utilisateur)
+>>>>>>> Stashed changes
 
         return True
 
-    # --- Recherches multi-critères ---
-    def rechercher_livres(self, titre: Optional[str] = None, auteur: Optional[str] = None,
-                          categorie: Optional[str] = None, disponibilite: Optional[bool] = None) -> List:
-        resultats = list(self.catalogue.livres.values())
-        if titre:
-            resultats = [l for l in resultats if titre.lower() in l.titre.lower()]
-        if auteur:
-            resultats = [l for l in resultats if auteur.lower() in l.auteur.lower()]
-        if categorie:
-            resultats = [l for l in resultats if categorie.lower() == l.categorie.lower()]
-        if disponibilite is not None:
-            resultats = [l for l in resultats if l.est_disponible() == disponibilite]
-        return resultats
+    # Exemple de méthode pour fermer proprement la connexion
+    def fermer_connexion(self):
+        if self.conn:
+            self.conn.close()
 
+<<<<<<< Updated upstream
     def rechercher_utilisateurs(self, nom: Optional[str] = None, email: Optional[str] = None,
                                 statut: Optional[str] = None) -> List:
         resultats = list(self.utilisateurs.values())
@@ -198,6 +401,9 @@ class Bibliotheque:
             return False
 
     # --- Méthode ajoutée corrigée : generer_rapport ---
+=======
+    # Méthode rapport simple
+>>>>>>> Stashed changes
     def generer_rapport(self) -> dict:
         return {
             "total_livres": len(self.catalogue.livres),

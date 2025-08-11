@@ -16,57 +16,52 @@ Emprunt.creer_table()
 
 
 def main():
+    # Création de la bibliothèque (connexion à SQLite et chargement des données)
     biblio = Bibliotheque(nom="Bibliothèque Centrale", adresse="Ouagadougou")
 
-    admin = Bibliothecaire(id=1, matricule="BIB001", nom="Kaboré", prenom="Awa", email="awa.kabore@biblio.bf")
-    biblio.bibliothecaires[admin.matricule] = admin
+    # Création d’un bibliothécaire et ajout si inexistant
+    matricule_admin = "BIB001"
+    if matricule_admin not in biblio.bibliothecaires:
+        admin = Bibliothecaire(id=1, matricule=matricule_admin, nom="Kaboré", prenom="Awa", email="awa.kabore@biblio.bf")
+        biblio.bibliothecaires[matricule_admin] = admin
+        biblio.sauvegarder_bibliothecaire(admin)
 
-    livre1 = Livre(
-        isbn="9781234567890",
-        titre="Python pour les nuls",
-        auteur="John Doe",
-        editeur="Eyrolles",
-        annee_publication=2022,
-        categorie="Informatique",
-        nombre_pages=320
-    )
-    admin.ajouter_livre(biblio.catalogue, livre1)
+    # Ajout d’un livre d’exemple (si absent)
+    isbn_exemple = "9781234567890"
+    if isbn_exemple not in biblio.catalogue.livres:
+        livre1 = Livre(
+            isbn=isbn_exemple,
+            titre="Python pour les nuls",
+            auteur="John Doe",
+            editeur="Eyrolles",
+            annee_publication=2022,
+            categorie="Informatique",
+            nombre_pages=320
+        )
+        biblio.ajouter_livre(livre1)
 
-    livres_data = [
-        ("9780000000001", "Python pour data-scientists",      "A. Traoré",   "ENI",        2021, "Informatique", 410),
-        ("9780000000002", "Apprendre Julia en 7 jours",       "B. Ouédraogo","Eyrolles",   2023, "Informatique", 180),
-        # autres livres ici...
-    ]
+    # Ajout d’un utilisateur d’exemple (si absent)
+    numero_carte_user = "U001"
+    if numero_carte_user not in biblio.utilisateurs:
+        user = Utilisateur(numero_carte=numero_carte_user, nom="Sawadogo", prenom="Delwende", email="delwende@etu.bf")
+        biblio.inscrire_utilisateur(user)
 
-    for isbn, titre, auteur, editeur, annee, categorie, pages in livres_data:
-        livre = Livre(isbn, titre, auteur, editeur, annee, categorie, pages)
-        admin.ajouter_livre(biblio.catalogue, livre)
+    # Faire un emprunt
+    id_emprunt = biblio.emprunter_livre(numero_carte=numero_carte_user, isbn=isbn_exemple)
+    print("Emprunt effectué :", biblio.emprunts.get(id_emprunt))
 
-    user = Utilisateur(numero_carte="U001", nom="Sawadogo", prenom="Delwende", email="delwende@etu.bf")
-    biblio.inscrire_utilisateur(user)
-
-    utilisateurs_data = [
-        ("U002", "Ilboudo",  "Mariam",  "mariam@etu.bf"),
-        # autres utilisateurs ici...
-    ]
-
-    for numero_carte, nom, prenom, email in utilisateurs_data:
-        u = Utilisateur(numero_carte=numero_carte, nom=nom, prenom=prenom, email=email)
-        biblio.inscrire_utilisateur(u)
-
-    id_emprunt = biblio.emprunter_livre(numero_carte="U001", isbn="9781234567890")
-    print("Emprunt effectué:", biblio.emprunts.get(id_emprunt))
-
+    # Retour du livre
     if id_emprunt is not None:
-        retour_ok = biblio.retourner_livre(id_emprunt=id_emprunt)
-        print("Livre retourné:", retour_ok)
-        print("État emprunt:", biblio.emprunts.get(id_emprunt))
+        retour_ok = biblio.retourner_livre(id_emprunt)
+        print("Retour effectué :", retour_ok)
+        print("État emprunt :", biblio.emprunts.get(id_emprunt))
 
+    # Générer un rapport simple
     rapport = biblio.generer_rapport()
-    print("Rapport:", rapport)
+    print("Rapport de la bibliothèque :", rapport)
 
-    print(f"Catalogue : {len(biblio.catalogue.livres)} livres")
-    print(f"Utilisateurs : {len(biblio.utilisateurs)} inscrits")
+    # Fermer la connexion à la base avant de quitter
+    biblio.fermer_connexion()
 
 if __name__ == "__main__":
     main()
