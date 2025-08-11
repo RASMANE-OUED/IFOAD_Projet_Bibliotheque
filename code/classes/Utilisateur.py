@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 from typing import List
+import re
 from classes.Personne import Personne
 
 DB_PATH = Path("data/bibliotheque.db")
@@ -120,6 +121,19 @@ class Utilisateur(Personne):
                 )
             )
         return utilisateurs
+    
+    @staticmethod
+    def valider_email(email: str) -> bool:
+        """Validation simple d'email"""
+        return re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email)
+    
+    @staticmethod
+    def valider_numero_carte(numero: str) -> bool:
+        """Format U suivi de 3 chiffres"""
+        return re.match(r'^U\d{3}$', numero)
+    
+    def nom_complet(self) -> str:
+        return f"{self.prenom} {self.nom}"
 
     @staticmethod
     def supprimer_db(numero_carte: str):

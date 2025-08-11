@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from classes.Catalogue import Catalogue
 from classes.Emprunt import Emprunt
@@ -25,48 +25,16 @@ class Bibliotheque:
             "periode_grace": 2
         }
 
-<<<<<<< Updated upstream
-        # Charger le catalogue depuis la base au démarrage
-        self.catalogue.charger_tous()
-
-    # --- CRUD Livres ---
-    def ajouter_livre(self, livre) -> bool:
-        if self.catalogue.ajouter_livre(livre):
-            livre.save()  # Sauvegarde en base SQLite
-            return True
-        return False
-
-    def modifier_livre(self, isbn: str, **modifications) -> bool:
-        livre = self.catalogue.livres.get(isbn)
-        if not livre:
-            return False
-        for attr, val in modifications.items():
-            if hasattr(livre, attr):
-                setattr(livre, attr, val)
-        livre.save()  # Mise à jour dans la base
-        return True
-
-    def supprimer_livre(self, isbn: str) -> bool:
-        emprunts_actifs = [e for e in self.emprunts.values() if e.id_livre == isbn and e.statut]
-        if emprunts_actifs:
-            return False
-        if self.catalogue.supprimer_livre(isbn):
-            from db import supprimer_livre_db
-            supprimer_livre_db(isbn)  # Suppression en base SQLite
-            return True
-        return False
-=======
         self.connect_db()      # Connecte la base SQLite
-        self.creer_tables()    # Crée les tables si elles n’existent pas
+        self.creer_table()    # Crée les tables si elles n’existent pas
         self.charger_donnees() # Charge les données en mémoire
 
     def connect_db(self):
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row  # Accès par clé de nom de colonne
 
-    def creer_tables(self):
+    def creer_table(self):
         cursor = self.conn.cursor()
->>>>>>> Stashed changes
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS livres (
@@ -240,7 +208,6 @@ class Bibliotheque:
         if utilisateur.numero_carte in self.utilisateurs:
             return False
         self.utilisateurs[utilisateur.numero_carte] = utilisateur
-<<<<<<< Updated upstream
         utilisateur.save()  # Sauvegarde en base SQLite
         return True
 
@@ -268,12 +235,10 @@ class Bibliotheque:
     def lister_utilisateurs(self) -> List:
         return list(self.utilisateurs.values())
 
-    # --- Emprunts / Retours ---
-=======
+    # --- Emprunts / Retours ------ 
         self.sauvegarder_utilisateur(utilisateur)
         return True
 
->>>>>>> Stashed changes
     def emprunter_livre(self, numero_carte: str, isbn: str) -> Optional[int]:
         utilisateur = self.utilisateurs.get(numero_carte)
         livre = self.catalogue.livres.get(isbn)
@@ -296,13 +261,6 @@ class Bibliotheque:
         )
         self.emprunts[id_emprunt] = emprunt
         livre.marquer_emprunte()
-<<<<<<< Updated upstream
-        emprunt.save()  # Sauvegarde en base SQLite
-
-        utilisateur.emprunts_actifs.append(emprunt)
-        utilisateur.historique.append(f"Emprunt: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
-        utilisateur.save()
-=======
         self.sauvegarder_livre(livre)
 
         utilisateur.emprunts_actifs.append(emprunt)
@@ -310,7 +268,6 @@ class Bibliotheque:
         self.sauvegarder_utilisateur(utilisateur)
 
         self.sauvegarder_emprunt(emprunt)
->>>>>>> Stashed changes
 
         livre.save()
         return id_emprunt
@@ -320,39 +277,72 @@ class Bibliotheque:
         if not emprunt or emprunt.statut is False:
             return False
         emprunt.finaliser_retour()
-<<<<<<< Updated upstream
         emprunt.save()
-=======
         self.sauvegarder_emprunt(emprunt)
->>>>>>> Stashed changes
 
         livre = self.catalogue.livres.get(emprunt.id_livre)
         if livre:
             livre.marquer_disponible()
-<<<<<<< Updated upstream
             livre.save()
-=======
             self.sauvegarder_livre(livre)
->>>>>>> Stashed changes
 
         utilisateur = self.utilisateurs.get(emprunt.id_utilisateur)
         if utilisateur:
             utilisateur.emprunts_actifs = [e for e in utilisateur.emprunts_actifs if e.id != id_emprunt]
             utilisateur.historique.append(f"Retour: {livre.titre} ({datetime.now().strftime('%Y-%m-%d')})")
-<<<<<<< Updated upstream
             utilisateur.save()
-=======
             self.sauvegarder_utilisateur(utilisateur)
->>>>>>> Stashed changes
 
         return True
+    def get_livres_disponibles(self) -> List[Dict]:
+        """Format spécial pour Combobox"""
+        return [
+            {"isbn": livre.isbn, "titre": livre.titre}
+            for livre in self.catalogue.livres.values() 
+            if livre.disponible
+        ]
+    
+    def get_utilisateurs_formates(self) -> List[Dict]:
+        """Format pour la liste déroulante"""
+        return [
+            {"numero": u.numero_carte, "nom_complet": f"{u.prenom} {u.nom}"}
+            for u in self.utilisateurs.values()
+        ]
+    
+    def get_emprunts_actifs(self) -> List[Dict]:
+        """Pour l'affichage dans Treeview"""
+        return [
+            {
+                "id": emp.id,
+                "utilisateur": self.utilisateurs[emp.id_utilisateur].prenom,
+                "livre": self.catalogue.livres[emp.id_livre].titre,
+                "date": emp.date_emprunt.strftime("%d/%m/%Y"),
+                "statut": "Actif" if emp.statut else "Terminé"
+            }
+            for emp in self.emprunts.values()
+        ]
+    
+    def rechercher_livres(self, critere: str) -> List[Dict]:
+        """Recherche multi-critères"""
+        critere = critere.lower()
+        resultats = []
+        for livre in self.catalogue.livres.values():
+            if (critere in livre.titre.lower() or 
+                critere in livre.auteur.lower() or 
+                critere in livre.isbn.lower()):
+                resultats.append({
+                    "isbn": livre.isbn,
+                    "titre": livre.titre,
+                    "auteur": livre.auteur,
+                    "disponible": "Oui" if livre.disponible else "Non"
+                })
+        return resultats
 
-    # Exemple de méthode pour fermer proprement la connexion
+    # E méthode pour fermer la connexion
     def fermer_connexion(self):
         if self.conn:
             self.conn.close()
 
-<<<<<<< Updated upstream
     def rechercher_utilisateurs(self, nom: Optional[str] = None, email: Optional[str] = None,
                                 statut: Optional[str] = None) -> List:
         resultats = list(self.utilisateurs.values())
@@ -401,10 +391,9 @@ class Bibliotheque:
             return False
 
     # --- Méthode ajoutée corrigée : generer_rapport ---
-=======
+
     # Méthode rapport simple
->>>>>>> Stashed changes
-    def generer_rapport(self) -> dict:
+    def generer_rapport(self) -> Dict:
         return {
             "total_livres": len(self.catalogue.livres),
             "total_utilisateurs": len(self.utilisateurs),

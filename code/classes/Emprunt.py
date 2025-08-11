@@ -42,30 +42,29 @@ class Emprunt:
     # ------------------------
     #   PERSISTANCE SQLITE
     # ------------------------
-     # Emprunt.py  (ajouter à la fin de la classe)
 
-def save(self):
-    """
-    Enregistre ou met à jour l'emprunt dans la table `emprunts`.
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT OR REPLACE INTO emprunts
-        (id, id_utilisateur, id_livre,
-         date_emprunt, date_retour_prevue, date_retour_effective, statut)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        self.id,
-        self.id_utilisateur,
-        self.id_livre,
-        self.date_emprunt.strftime("%Y-%m-%d %H:%M:%S"),
-        self.date_retour_prevue.strftime("%Y-%m-%d %H:%M:%S"),
-        self.date_retour_effective.strftime("%Y-%m-%d %H:%M:%S") if self.date_retour_effective else None,
-        1 if self.statut else 0
-    ))
-    conn.commit()
-    conn.close()
+    def save(self):
+        """
+        Enregistre ou met à jour l'emprunt dans la table `emprunts`.
+        """
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO emprunts
+            (id, id_utilisateur, id_livre,
+             date_emprunt, date_retour_prevue, date_retour_effective, statut)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            self.id,
+            self.id_utilisateur,
+            self.id_livre,
+            self.date_emprunt.strftime("%Y-%m-%d %H:%M:%S"),
+            self.date_retour_prevue.strftime("%Y-%m-%d %H:%M:%S"),
+            self.date_retour_effective.strftime("%Y-%m-%d %H:%M:%S") if self.date_retour_effective else None,
+            1 if self.statut else 0
+        ))
+        conn.commit()
+        conn.close()
 
     @staticmethod
     def creer_table():
@@ -130,6 +129,28 @@ def save(self):
             )
         return emprunts
 
+    def jours_restants(self) -> int:
+        """Jours avant échéance"""
+        return (self.date_retour_prevue - datetime.now()).days
+    
+    def est_en_retard(self) -> bool:
+        """Vérifie si l'emprunt est en retard"""
+        return self.jours_restants() < 0 and self.statut
+    
+    def get_statut_detaille(self) -> str:
+        if not self.statut:
+            return "Retourné"
+        return "En retard" if self.est_en_retard() else "En cours"
+    
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "utilisateur": self.id_utilisateur,
+            "livre": self.id_livre,
+            "statut": self.get_statut_detaille(),
+            "date_emprunt": self.date_emprunt.strftime("%d/%m/%Y")
+        }
+
     @staticmethod
     def supprimer_db(emprunt_id: int):
         conn = sqlite3.connect(DB_PATH)
@@ -137,4 +158,3 @@ def save(self):
         cursor.execute("DELETE FROM emprunts WHERE id = ?", (emprunt_id,))
         conn.commit()
         conn.close()
-

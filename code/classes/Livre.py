@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 from datetime import datetime
+import re
 
 DB_PATH = Path("data/bibliotheque.db")
 
@@ -72,7 +73,7 @@ class Livre:
         conn.commit()
         conn.close()
 
-    def sauvegarder_db(self):
+    def save(self):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
@@ -120,6 +121,51 @@ class Livre:
                 )
             )
         return livres
+
+
+    def get_livres_disponibles(self) -> list[dict]:
+        """Format spécial pour Combobox"""
+        return [
+            {"isbn": livre.isbn, "titre": livre.titre}
+            for livre in self.catalogue.livres.values() 
+            if livre.disponible
+        ]
+    
+    def get_utilisateurs_formates(self) -> list[dict]:
+        """Format pour la liste déroulante"""
+        return [
+            {"numero": u.numero_carte, "nom_complet": f"{u.prenom} {u.nom}"}
+            for u in self.utilisateurs.values()
+        ]
+    
+    def get_emprunts_actifs(self) -> list[dict]:
+        """Pour l'affichage dans Treeview"""
+        return [
+            {
+                "id": emp.id,
+                "utilisateur": self.utilisateurs[emp.id_utilisateur].prenom,
+                "livre": self.catalogue.livres[emp.id_livre].titre,
+                "date": emp.date_emprunt.strftime("%d/%m/%Y"),
+                "statut": "Actif" if emp.statut else "Terminé"
+            }
+            for emp in self.emprunts.values()
+        ]
+    
+    def rechercher_livres(self, critere: str) -> list[dict]:
+        """Recherche multi-critères"""
+        critere = critere.lower()
+        resultats = []
+        for livre in self.catalogue.livres.values():
+            if (critere in livre.titre.lower() or 
+                critere in livre.auteur.lower() or 
+                critere in livre.isbn.lower()):
+                resultats.append({
+                    "isbn": livre.isbn,
+                    "titre": livre.titre,
+                    "auteur": livre.auteur,
+                    "disponible": "Oui" if livre.disponible else "Non"
+                })
+        return resultats
 
     @staticmethod
     def supprimer_db(isbn: str):

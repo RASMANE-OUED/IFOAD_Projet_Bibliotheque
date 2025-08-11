@@ -8,6 +8,7 @@ DB_PATH = Path("data/bibliotheque.db")
 class Catalogue:
     def __init__(self):
         self.livres = {}  # clé = ISBN, valeur = Livre
+        self._index_recherche=None
 
     # --- Gestion en mémoire ---
     def ajouter_livre(self, livre) -> bool:
@@ -96,6 +97,45 @@ class Catalogue:
                        categorie=row[5], nombre_pages=row[6], disponible=bool(row[7]))
             for row in rows
         ]
+    def build_index(self):
+        """Crée un index pour des recherches rapides"""
+        self._index_recherche = {
+            'titres': {},
+            'auteurs': {},
+            'categories': {}
+        }
+        
+        for isbn, livre in self.livres.items():
+            # Index par mots-clés du titre
+            for mot in livre.titre.lower().split():
+                if mot not in self._index_recherche['titres']:
+                    self._index_recherche['titres'][mot] = []
+                self._index_recherche['titres'][mot].append(isbn)
+            
+            # Index par auteur
+            if livre.auteur not in self._index_recherche['auteurs']:
+                self._index_recherche['auteurs'][livre.auteur] = []
+            self._index_recherche['auteurs'][livre.auteur].append(isbn)
+    
+    def rechercher_avance(self, terme: str) -> list[Livre]:
+        """Recherche avec index"""
+        if not self._index_recherche:
+            self.build_index()
+        
+        terme = terme.lower()
+        resultats = set()
+        
+        # Recherche dans les titres
+        for mot, isbns in self._index_recherche['titres'].items():
+            if terme in mot:
+                resultats.update(isbns)
+        
+        # Recherche dans les auteurs
+        for auteur, isbns in self._index_recherche['auteurs'].items():
+            if terme in auteur.lower():
+                resultats.update(isbns)
+        
+        return [self.livres[isbn] for isbn in resultats]
 
     @staticmethod
     def supprimer_livre_db(isbn: str):
