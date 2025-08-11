@@ -357,6 +357,30 @@ class Bibliotheque:
 
         return id_emprunt
 
+    def refresh_emprunts(self):
+        """Remplit le tableau des emprunts avec les données actuelles."""
+    # 1. Vider le tableau
+        for item in self.emprunts_tree.get_children():
+            self.emprunts_tree.delete(item)
+
+    # 2. Le remplir à nouveau
+        for emprunt in self.biblio.emprunts.values():
+            user  = self.biblio.utilisateurs.get(emprunt.id_utilisateur)
+            livre = self.biblio.catalogue.livres.get(emprunt.id_livre)
+
+            self.emprunts_tree.insert(
+                "", tk.END,
+               values=(
+                emprunt.id,
+                user.numero_carte  if user  else "Inconnu",
+                livre.isbn         if livre else "Inconnu",
+                emprunt.date_emprunt.strftime("%d/%m/%Y"),
+                emprunt.date_retour_prevue.strftime("%d/%m/%Y"),
+                emprunt.date_retour_effective.strftime("%d/%m/%Y") if emprunt.date_retour_effective else "",
+                "En cours" if emprunt.statut else "Terminé"
+            )
+        )
+
     def retourner_livre(self, id_emprunt: int) -> bool:
         emprunt = self.emprunts.get(id_emprunt)
         if not emprunt or emprunt.statut is False:
