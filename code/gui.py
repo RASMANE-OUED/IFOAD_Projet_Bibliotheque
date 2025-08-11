@@ -82,6 +82,80 @@ class BiblioGUI(tk.Tk):
         else:
             messagebox.showerror("Erreur", "Impossible d'ajouter le livre")
 
+    def refresh_emprunts(self):
+        """Remplit le Treeview avec les emprunts actuels."""
+        for row in self.emprunts_tree.get_children():
+            self.emprunts_tree.delete(row)
+        for emprunt in self.biblio.emprunts.values():
+            user = self.biblio.utilisateurs.get(emprunt.id_utilisateur)
+            livre = self.biblio.catalogue.livres.get(emprunt.id_livre)
+            self.emprunts_tree.insert(
+                "", tk.END, values=(
+                emprunt.id,
+                user.numero_carte if user else "Inconnu",
+                livre.isbn if livre else "Inconnu",
+                emprunt.date_emprunt.strftime("%d/%m/%Y"),
+                emprunt.date_retour_prevue.strftime("%d/%m/%Y"),
+                emprunt.date_retour_effective.strftime("%d/%m/%Y") if emprunt.date_retour_effective else "",
+                "En cours" if emprunt.statut else "Terminé"
+            )
+        )
+
+
+    def _filter_users(self, *args):
+        txt = self.user_search_var.get().lower()
+        self.user_listbox.delete(0, tk.END)
+        for u in self.biblio.utilisateurs.values():
+            if txt in f"{u.nom} {u.prenom} {u.numero_carte}".lower():
+                self.user_listbox.insert(tk.END, f"{u.numero_carte} - {u.prenom} {u.nom}")
+        if self.user_listbox.size():
+            self.user_listbox.selection_set(0)
+
+
+    def _filter_books(self, *args):
+        txt = self.book_search_var.get().lower()
+        self.book_listbox.delete(0, tk.END)
+        for livre in self.biblio.catalogue.livres.values():
+            if livre.est_disponible() and txt in f"{livre.titre} {livre.auteur} {livre.isbn}".lower():
+                self.book_listbox.insert(tk.END, f"{livre.isbn} - {livre.titre}")
+        if self.book_listbox.size():
+            self.book_listbox.selection_set(0)
+
+
+    def ajouter_emprunt_smart(self):
+        """Crée l’emprunt avec l’utilisateur et le livre sélectionnés."""
+        if not self.user_listbox.curselection() or not self.book_listbox.curselection():
+            messagebox.showwarning("Sélection", "Veuillez choisir un utilisateur et un livre dans les listes.")
+            return
+
+        numero_carte = self.user_listbox.get(self.user_listbox.curselection()).split(" - ")[0]
+        isbn = self.book_listbox.get(self.book_listbox.curselection()).split(" - ")[0]
+
+        id_emprunt = self.biblio.emprunter_livre(numero_carte, isbn)
+        if id_emprunt is None:
+            messagebox.showerror("Erreur", "Impossible d’effectuer l’emprunt.")
+        else:
+            messagebox.showinfo("Succès", f"Emprunt n°{id_emprunt} enregistré.")
+            self.refresh_emprunts()
+            self._filter_users()
+            self._filter_books()
+
+
+    def retourner_emprunt(self):
+        """Retourne l’emprunt sélectionné."""
+        sel = self.emprunts_tree.selection()
+        if not sel:
+            messagebox.showwarning("Sélection", "Veuillez sélectionner un emprunt à retourner.")
+            return
+        id_emprunt = int(self.emprunts_tree.item(sel[0], "values")[0])
+        if self.biblio.retourner_livre(id_emprunt):
+            messagebox.showinfo("Succès", "Retour effectué.")
+            self.refresh_emprunts()
+            self._filter_users()
+            self._filter_books()
+        else:
+            messagebox.showerror("Erreur", "Retour impossible.")
+
 if __name__ == "__main__":
     from classes.Bibliotheque import Bibliotheque
 

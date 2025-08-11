@@ -213,85 +213,128 @@ class BibliothequeApp:
         self.email_entry.delete(0, tk.END)
 
     # --- Onglet Emprunts ---
+# --- Onglet Emprunts (version recherche intelligente) ---
     def create_emprunt_tab(self):
         tab = ttk.Frame(self.notebook, style='TFrame')
         self.notebook.add(tab, text="Emprunts")
 
-        form_frame = ttk.Frame(tab, style='TFrame')
-        form_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+        form = ttk.Frame(tab, style='TFrame')
+        form.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
 
-        ttk.Label(form_frame, text="Utilisateur (N° carte) :").grid(row=0, column=0, sticky="w")
-        self.emprunt_user_var = tk.StringVar()
-        self.emprunt_user_combo = ttk.Combobox(form_frame, textvariable=self.emprunt_user_var, state="readonly")
-        self.emprunt_user_combo.grid(row=0, column=1, padx=5)
+    # --- Utilisateur ---
+        ttk.Label(form, text="Utilisateur :").grid(row=0, column=0, sticky="w")
+        self.user_search_var = tk.StringVar()
+        self.user_entry = ttk.Entry(form, textvariable=self.user_search_var, width=30)
+        self.user_entry.grid(row=0, column=1, padx=5)
+        self.user_listbox = tk.Listbox(form, height=4, width=30, exportselection=False)
+        self.user_listbox.grid(row=1, column=1, padx=5, pady=2)
 
-        ttk.Label(form_frame, text="Livre (ISBN) :").grid(row=0, column=2, sticky="w")
-        self.emprunt_livre_var = tk.StringVar()
-        self.emprunt_livre_combo = ttk.Combobox(form_frame, textvariable=self.emprunt_livre_var, state="readonly")
-        self.emprunt_livre_combo.grid(row=0, column=3, padx=5)
+    # --- Livre ---
+        ttk.Label(form, text="Livre :").grid(row=0, column=2, sticky="w")
+        self.book_search_var = tk.StringVar()
+        self.book_entry = ttk.Entry(form, textvariable=self.book_search_var, width=30)
+        self.book_entry.grid(row=0, column=3, padx=5)
+        self.book_listbox = tk.Listbox(form, height=4, width=30, exportselection=False)
+        self.book_listbox.grid(row=1, column=3, padx=5, pady=2)
 
-        emprunter_btn = ttk.Button(form_frame, text="Faire Emprunt", command=self.ajouter_emprunt, style='TButton')
-        emprunter_btn.grid(row=0, column=4, padx=10)
+    # Boutons
+        ttk.Button(form, text="Faire Emprunt",
+               command=self.ajouter_emprunt_smart, style='TButton').grid(row=0, column=4, padx=10)
+        ttk.Button(tab, text="Retourner le livre sélectionné",
+               command=self.retourner_emprunt, style='TButton').pack(pady=5)
 
-        colonnes = ("id", "utilisateur", "livre", "date_emprunt", "date_retour_prevue", "date_retour_effective", "statut")
-        self.emprunts_tree = ttk.Treeview(tab, columns=colonnes, show="headings", selectmode="browse")
-        for col in colonnes:
-            self.emprunts_tree.heading(col, text=col.replace("_", " ").capitalize())
-            self.emprunts_tree.column(col, width=130, anchor=tk.W)
-        self.emprunts_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    # --- Treeview ---
+        cols = ("id", "utilisateur", "livre", "date_emprunt",
+            "date_retour_prevue", "date_retour_effective", "statut")
+        self.emprunts_tree = ttk.Treeview(tab, columns=cols, show="headings", selectmode="browse")
+        for c in cols:
+            self.emprunts_tree.heading(c, text=c.replace("_", " ").capitalize())
+            self.emprunts_tree.column(c, width=120, anchor=tk.W)
+        self.emprunts_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-        retourner_btn = ttk.Button(tab, text="Retourner le livre sélectionné", command=self.retourner_emprunt, style='TButton')
-        retourner_btn.pack(pady=5)
+    # Bind Enter et rafraîchissement
+        self.user_entry.bind('<Return>', lambda e: self.user_listbox.focus_set())
+        self.book_entry.bind('<Return>', lambda e: self.book_listbox.focus_set())
+        self.user_listbox.bind('<Return>', lambda e: self.ajouter_emprunt_smart())
+        self.book_listbox.bind('<Return>', lambda e: self.ajouter_emprunt_smart())
 
-        self.refresh_emprunt_combos()
+    # initialisation
+        self.user_search_var.trace_add("write", self._filter_users)
+        self.book_search_var.trace_add("write", self._filter_books)
         self.refresh_emprunts()
 
-    def refresh_emprunt_combos(self):
-        self.emprunt_user_combo['values'] = list(self.biblio.utilisateurs.keys())
-        livres_disponibles = [livre.isbn for livre in self.biblio.catalogue.livres.values() if livre.est_disponible()]
-        self.emprunt_livre_combo['values'] = livres_disponibles
-        if livres_disponibles:
-            self.emprunt_livre_var.set(livres_disponibles[0])
-        if self.biblio.utilisateurs:
-            self.emprunt_user_var.set(next(iter(self.biblio.utilisateurs.keys())))
-
-    def refresh_emprunts(self):
-        for row in self.emprunts_tree.get_children():
-            self.emprunts_tree.delete(row)
-        for i, emprunt in enumerate(self.biblio.emprunts.values()):
-            utilisateur = self.biblio.utilisateurs.get(emprunt.id_utilisateur)
-            livre = self.biblio.catalogue.livres.get(emprunt.id_livre)
-            date_emprunt = emprunt.date_emprunt.strftime("%Y-%m-%d") if emprunt.date_emprunt else "N/A"
-            date_retour_prevue = emprunt.date_retour_prevue.strftime("%Y-%m-%d") if emprunt.date_retour_prevue else "N/A"
-            date_retour_effective = emprunt.date_retour_effective.strftime("%Y-%m-%d") if emprunt.date_retour_effective else "N/A"
-            statut = "En cours" if emprunt.statut else "Terminé"
-            tag = 'evenrow' if i % 2 == 0 else 'oddrow'
+# Méthode pour rafraîchir la liste des emprunts
+    def _refresh_emprunts(self):
+       # Vider le treeview
+        for item in self.emprunts_tree.get_children():
+            self.emprunts_tree.delete(item)
+    
+    # Remplir avec les emprunts actuels
+        for emp in self.biblio.emprunts.values():
+            user = self.biblio.utilisateurs.get(emp.numero_carte, None)
+            livre = self.biblio.catalogue.livres.get(emp.isbn, None)
+        
+            user_str = f"{user.prenom} {user.nom}" if user else "Inconnu"
+            livre_str = livre.titre if livre else "Inconnu"
+        
+            statut = "En cours" if emp.date_retour_effective is None else "Retourné"
+        
             self.emprunts_tree.insert("", tk.END, values=(
-                emprunt.id,
-                utilisateur.numero_carte if utilisateur else "Inconnu",
-                livre.isbn if livre else "Inconnu",
-                date_emprunt,
-                date_retour_prevue,
-                date_retour_effective,
-                statut), tags=(tag,))
-        self.emprunts_tree.tag_configure('evenrow', background='white')
-        self.emprunts_tree.tag_configure('oddrow', background='#f0f4ff')
+            emp.id_emprunt,
+            user_str,
+            livre_str,
+            emp.date_emprunt.strftime("%Y-%m-%d") if emp.date_emprunt else "",
+            emp.date_retour_prevue.strftime("%Y-%m-%d") if emp.date_retour_prevue else "",
+            emp.date_retour_effective.strftime("%Y-%m-%d") if emp.date_retour_effective else "",
+            statut
+        ))
 
-    def ajouter_emprunt(self):
-        numero_carte = self.emprunt_user_var.get()
-        isbn = self.emprunt_livre_var.get()
-        if not numero_carte or not isbn:
-            messagebox.showwarning("Validation", "Veuillez sélectionner un utilisateur et un livre.")
+# Méthode pour mettre à jour l'entry quand on sélectionne dans la listbox
+    def _update_entry_from_listbox(self, listbox, entry):
+        selection = listbox.curselection()
+        if selection:
+            entry.delete(0, tk.END)
+            entry.insert(0, listbox.get(selection[0]))
+
+# ---------- Méthodes de filtrage ----------
+    def _filter_users(self, *args):
+        text = self.user_search_var.get().lower()
+        self.user_listbox.delete(0, tk.END)
+        for uc in self.biblio.utilisateurs.values():
+            needle = f"{uc.nom} {uc.prenom} {uc.numero_carte}".lower()
+            if text in needle:
+                self.user_listbox.insert(tk.END, f"{uc.numero_carte} - {uc.prenom} {uc.nom}")
+
+    def _filter_books(self, *args):
+        text = self.book_search_var.get().lower()
+        self.book_listbox.delete(0, tk.END)
+        for livre in self.biblio.catalogue.livres.values():
+            if not livre.est_disponible():
+                continue
+            needle = f"{livre.titre} {livre.auteur} {livre.isbn}".lower()
+            if text in needle:
+                self.book_listbox.insert(tk.END, f"{livre.isbn} - {livre.titre}")
+
+# ---------- Ajout d'emprunt avec sélection depuis les listes ----------
+    def ajouter_emprunt_smart(self):
+        user_sel = self.user_listbox.curselection()
+        book_sel = self.book_listbox.curselection()
+        if not user_sel or not book_sel:
+            messagebox.showwarning("Sélection", "Veuillez choisir un utilisateur et un livre dans les listes.")
             return
+
+        numero_carte = self.user_listbox.get(user_sel[0]).split(" - ")[0]
+        isbn = self.book_listbox.get(book_sel[0]).split(" - ")[0]
+
         id_emprunt = self.biblio.emprunter_livre(numero_carte, isbn)
         if id_emprunt is None:
-            messagebox.showerror("Erreur", "Impossible d'effectuer l'emprunt. Vérifiez la disponibilité et le statut de l'utilisateur.")
+            messagebox.showerror("Erreur", "Emprunt impossible.")
         else:
-            messagebox.showinfo("Succès", f"Emprunt réalisé avec ID {id_emprunt}.")
-            self.refresh_emprunts()
-            self.refresh_emprunt_combos()
-            self.update_stats()
-
+            messagebox.showinfo("Succès", f"Emprunt n°{id_emprunt} enregistré.")
+            self._refresh_emprunts()
+            self._filter_users()   # rafraîchit aussi les listes
+            self._filter_books()
+        
     def retourner_emprunt(self):
         selected = self.emprunts_tree.selection()
         if not selected:
@@ -301,11 +344,11 @@ class BibliothequeApp:
         id_emprunt = int(values[0])
         if self.biblio.retourner_livre(id_emprunt):
             messagebox.showinfo("Succès", "Retour effectué.")
-            self.refresh_emprunts()
-            self.refresh_emprunt_combos()
-            self.update_stats()
+            self._refresh_emprunts()
+            self._filter_users()
+            self._filter_books()
         else:
-            messagebox.showerror("Erreur", "Retour impossible, emprunt déjà terminé ou invalide.")
+            messagebox.showerror("Erreur", "Retour impossible.")
 
     # --- Onglet Statistiques ---
     def create_stats_tab(self):
