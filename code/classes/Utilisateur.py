@@ -43,7 +43,19 @@ class Utilisateur(Personne):
 
     # ------------------------
     #   PERSISTANCE SQLITE
-    # ------------------------
+        # -------------  Persistance -------------
+    def save(self):
+        """Inserer or replacer l'utilisateur dans la table `utilisateurs`."""
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO utilisateurs
+            (numero_carte, nom, prenom, email, statut)
+            VALUES (?, ?, ?, ?, ?)
+        """, (self.numero_carte, self.nom, self.prenom, self.email, self.statut))
+        conn.commit()
+        conn.close()
+
 
     @staticmethod
     def creer_table():

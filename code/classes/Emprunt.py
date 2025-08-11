@@ -42,6 +42,30 @@ class Emprunt:
     # ------------------------
     #   PERSISTANCE SQLITE
     # ------------------------
+     # Emprunt.py  (ajouter à la fin de la classe)
+
+def save(self):
+    """
+    Enregistre ou met à jour l'emprunt dans la table `emprunts`.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO emprunts
+        (id, id_utilisateur, id_livre,
+         date_emprunt, date_retour_prevue, date_retour_effective, statut)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        self.id,
+        self.id_utilisateur,
+        self.id_livre,
+        self.date_emprunt.strftime("%Y-%m-%d %H:%M:%S"),
+        self.date_retour_prevue.strftime("%Y-%m-%d %H:%M:%S"),
+        self.date_retour_effective.strftime("%Y-%m-%d %H:%M:%S") if self.date_retour_effective else None,
+        1 if self.statut else 0
+    ))
+    conn.commit()
+    conn.close()
 
     @staticmethod
     def creer_table():

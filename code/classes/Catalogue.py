@@ -47,10 +47,13 @@ class Catalogue:
                 isbn TEXT PRIMARY KEY,
                 titre TEXT,
                 auteur TEXT,
+                editeur TEXT,
+                annee_publication INTEGER,
                 categorie TEXT,
+                nombre_pages INTEGER,
                 disponible INTEGER,
                 date_ajout TEXT
-            )
+                    )
         """)
         conn.commit()
         conn.close()
@@ -75,13 +78,22 @@ class Catalogue:
 
     @staticmethod
     def charger_tous():
+
+        Catalogue.creer_table() 
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT isbn, titre, auteur, categorie, disponible FROM catalogue")
+        cursor.execute("""
+               SELECT isbn, titre, auteur, editeur,
+             annee_publication, categorie, nombre_pages, disponible
+             FROM catalogue
+                 """)
+
         rows = cursor.fetchall()
         conn.close()
         return [
-            Livre(isbn=row[0], titre=row[1], auteur=row[2], categorie=row[3], disponible=bool(row[4]))
+                Livre(isbn=row[0], titre=row[1], auteur=row[2],
+                       editeur=row[3], annee_publication=row[4],
+                       categorie=row[5], nombre_pages=row[6], disponible=bool(row[7]))
             for row in rows
         ]
 
@@ -89,6 +101,9 @@ class Catalogue:
     def supprimer_livre_db(isbn: str):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM catalogue WHERE isbn = ?", (isbn,))
+        cursor.execute("""
+            SELECT isbn, titre, auteur, editeur,
+                  annee_publication, categorie, nombre_pages, disponible
+                  FROM catalogue   """)
         conn.commit()
         conn.close()

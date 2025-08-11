@@ -1,8 +1,19 @@
+from pathlib import Path
 from classes.Personne import Personne
 from classes.Livre import Livre
 from classes.Utilisateur import Utilisateur
 from classes.Bibliothecaire import Bibliothecaire
 from classes.Bibliotheque import Bibliotheque
+from classes.Catalogue import Catalogue
+from classes.Emprunt import Emprunt
+
+Path("data").mkdir(exist_ok=True)
+
+Catalogue.creer_table()
+Livre.creer_table()
+Utilisateur.creer_table()
+Emprunt.creer_table()
+
 
 def main():
     biblio = Bibliotheque(nom="Bibliothèque Centrale", adresse="Ouagadougou")
