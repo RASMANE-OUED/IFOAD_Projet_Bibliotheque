@@ -8,6 +8,18 @@ from classes.Utilisateur import Utilisateur
 from classes.Livre import Livre
 from classes.Bibliothecaire import Bibliothecaire
 
+import hashlib  # Import en haut de ton fichier
+
+def hacher_mot_de_passe(mdp: str) -> str:
+    """Retourne le hash SHA-256 du mot de passe."""
+    return hashlib.sha256(mdp.encode()).hexdigest()
+
+
+
+
+
+
+
 
 class Bibliotheque:
     def __init__(self, nom: str, adresse: str, db_path: str = "bibliotheque.db"):
@@ -29,6 +41,13 @@ class Bibliotheque:
         self.connect_db()       # Connexion à la base SQLite
         self.creer_tables()     # Création des tables si elles n'existent pas
         self.charger_donnees()  # Chargement des données en mémoire
+
+    def creer_tables(self):
+        cursor = self.conn.cursor()
+
+
+
+
 
     def connect_db(self):
         self.conn = sqlite3.connect(self.db_path)
@@ -220,6 +239,26 @@ class Bibliotheque:
             ),
         )
         self.conn.commit()
+
+    # Table comptes pour gestion des utilisateurs applicatifs
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS comptes (
+                username TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL
+            )
+        """)
+
+        # Insertion du compte admin par défaut si inexistant
+        cursor.execute("SELECT COUNT(*) FROM comptes WHERE username = ?", ("admin",))
+        if cursor.fetchone()[0] == 0:
+            mdp_hash = hacher_mot_de_passe("1234")  # mot de passe par défaut admin
+            cursor.execute("INSERT INTO comptes (username, password_hash) VALUES (?, ?)", ("admin", mdp_hash))
+
+        self.conn.commit()
+
+
+
+
 
     def sauvegarder_bibliothecaire(self, bibliothecaire: Bibliothecaire):
         cursor = self.conn.cursor()
@@ -416,3 +455,21 @@ class Bibliotheque:
             "total_emprunts": len(self.emprunts),
             "livres_disponibles": len(self.catalogue.lister_livres_disponibles()),
         }
+    
+
+    # ... le reste de ta classe ...
+
+    def verifier_identifiants(self, username: str, mot_de_passe: str) -> bool:
+        mdp_hash = hacher_mot_de_passe(mot_de_passe)
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT password_hash FROM comptes WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        return row is not None and row["password_hash"] == mdp_hash
+
+    def changer_mot_de_passe(self, username: str, nouveau_mdp: str) -> bool:
+        mdp_hash = hacher_mot_de_passe(nouveau_mdp)
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE comptes SET password_hash = ? WHERE username = ?", (mdp_hash, username))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
