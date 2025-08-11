@@ -350,7 +350,7 @@ class BibliothequeApp:
             self.stats_labels["livres_disponibles"].config(text=str(rapport['livres_disponibles']))
             self.stats_labels["emprunts_en_cours"].config(text=str(emprunts_en_cours))
             self.stats_labels["utilisateurs_bloques"].config(text=str(utilisateurs_bloques))
-            self.stats_labels["amendes_totales"].config(text=f"{total_amendes:.2f} €")
+            self.stats_labels["amendes_totales"].config(text=f"{total_amendes:.2f} FCFA")
 
     # --- Fenêtre de changement de mot de passe ---
     def ouvrir_fenetre_changer_mdp(self):
