@@ -10,7 +10,7 @@ class BibliothequeApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Gestion de Bibliothèque UJKZ")
-        self.root.geometry("1200x700")
+        self.root.state('zoomed')  # Affiche la fenêtre en plein écran
         self.root.configure(bg="#f4f6f8")
 
         Path("data").mkdir(exist_ok=True)
@@ -29,7 +29,8 @@ class BibliothequeApp:
         style.configure("TNotebook.Tab", font=("Helvetica", 11, "bold"), padding=[10, 5])
         style.map("TNotebook.Tab", background=[("selected", "#2b4f81")], foreground=[("selected", "white")])
 
-        style.configure("TLabel", background="#f4f6f8", font=("Helvetica", 10))
+        # Fond des labels en blanc pour un rendu plus propre
+        style.configure("TLabel", background="white", font=("Helvetica", 10))
         style.configure("Header.TLabel", font=("Helvetica", 14, "bold"), background="#f4f6f8", foreground="#2b4f81", padding=5)
 
         style.configure("TButton", font=("Helvetica", 10, "bold"), padding=6, relief="flat",
@@ -311,30 +312,40 @@ class BibliothequeApp:
     def create_stats_tab(self):
         tab = ttk.Frame(self.notebook, style='TFrame')
         self.notebook.add(tab, text="Statistiques")
+        
         main_frame = ttk.Frame(tab, style='TFrame')
-        main_frame.pack(expand=True, padx=20, pady=20)
-        ttk.Label(main_frame, text="Statistiques de la Bibliothèque", font=("Helvetica", 16, "bold"),
-                  foreground="#2b4f81", background="#f4f6f8").pack(pady=(0, 20))
-        stats_frame = ttk.Frame(main_frame, style='TFrame')
-        stats_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.pack(expand=True, padx=20, pady=20, fill=tk.BOTH)
+
+        # Cadre pour les statistiques
+        stats_frame = ttk.Frame(main_frame, style='TFrame', padding=20, relief="groove")
+        stats_frame.pack(anchor=tk.CENTER)
+
+        ttk.Label(stats_frame, text="📊 Statistiques de la Bibliothèque",
+                  font=("Helvetica", 16, "bold"), foreground="#2b4f81",
+                  background="white").grid(row=0, column=0, columnspan=2, pady=(0, 20), sticky="ew")
+
         self.stats_labels = {}
-        row_count = 0
         stats_data = [
-            ("📚 Total de Livres", "total_livres"),
-            ("👥 Total d'Utilisateurs", "total_utilisateurs"),
-            ("📖 Total d'Emprunts", "total_emprunts"),
-            ("✅ Livres Disponibles", "livres_disponibles"),
-            ("⏳ Emprunts en Cours", "emprunts_en_cours"),
-            ("🚫 Utilisateurs Bloqués", "utilisateurs_bloques"),
-            ("💰 Amendes Totales", "amendes_totales")
+            ("📚 Total de Livres :", "total_livres"),
+            ("✅ Livres Disponibles :", "livres_disponibles"),
+            ("📖 Total d'Emprunts :", "total_emprunts"),
+            ("⏳ Emprunts en Cours :", "emprunts_en_cours"),
+            ("👥 Total d'Utilisateurs :", "total_utilisateurs"),
+            ("🚫 Utilisateurs Bloqués :", "utilisateurs_bloques"),
+            ("💰 Amendes Totales :", "amendes_totales")
         ]
-        for emoji_label, key in stats_data:
-            ttk.Label(stats_frame, text=f"• {emoji_label} :", font=("Helvetica", 11)).grid(row=row_count, column=0, sticky="w",
-                                                                                            pady=5, padx=10)
-            self.stats_labels[key] = ttk.Label(stats_frame, text="Chargement...", font=("Helvetica", 11, "bold"),
-                                                foreground="#4a4a4a")
-            self.stats_labels[key].grid(row=row_count, column=1, sticky="w", pady=5, padx=10)
-            row_count += 1
+
+        # On utilise une grille pour un affichage en colonnes
+        for i, (label_text, key) in enumerate(stats_data):
+            # Label pour le texte descriptif (colonne 0)
+            ttk.Label(stats_frame, text=label_text, font=("Helvetica", 12),
+                      background="white", foreground="#4a4a4a").grid(row=i + 1, column=0, sticky="w", pady=5, padx=10)
+
+            # Label pour la valeur de la statistique (colonne 1)
+            self.stats_labels[key] = ttk.Label(stats_frame, text="Chargement...", font=("Helvetica", 12, "bold"),
+                                               background="white", foreground="#2b4f81")
+            self.stats_labels[key].grid(row=i + 1, column=1, sticky="w", pady=5, padx=10)
+
 
     def update_stats(self):
         rapport = self.biblio.generer_rapport()
@@ -343,12 +354,14 @@ class BibliothequeApp:
         total_amendes = 0.0
         for emprunt in self.biblio.emprunts_en_retard():
             total_amendes += self.biblio.calculer_amende(emprunt.id)
+        
+        # On met à jour les labels de la grille
         if hasattr(self, 'stats_labels'):
             self.stats_labels["total_livres"].config(text=str(rapport['total_livres']))
-            self.stats_labels["total_utilisateurs"].config(text=str(rapport['total_utilisateurs']))
-            self.stats_labels["total_emprunts"].config(text=str(rapport['total_emprunts']))
             self.stats_labels["livres_disponibles"].config(text=str(rapport['livres_disponibles']))
+            self.stats_labels["total_emprunts"].config(text=str(rapport['total_emprunts']))
             self.stats_labels["emprunts_en_cours"].config(text=str(emprunts_en_cours))
+            self.stats_labels["total_utilisateurs"].config(text=str(rapport['total_utilisateurs']))
             self.stats_labels["utilisateurs_bloques"].config(text=str(utilisateurs_bloques))
             self.stats_labels["amendes_totales"].config(text=f"{total_amendes:.2f} FCFA")
 
